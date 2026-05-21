@@ -26,11 +26,64 @@ h1 {
     padding: 20px;
 }
 
+.calendar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    gap: 10px;
+}
+
+.month-nav {
+    background-color: #333;
+    color: white;
+    border: none;
+    padding: 8px 14px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 700;
+}
+
+.month-nav:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.month-label {
+    font-size: 18px;
+    font-weight: 700;
+    text-align: center;
+    flex: 1;
+}
+
 .calendar {
     display: grid;
-    grid-template-columns: repeat(7, 1fr);
+    grid-template-columns: repeat(7, minmax(0, 1fr));
     gap: 0;
     background-color: #d4c299;
+}
+
+.weekday-header {
+    padding: 12px 10px;
+    background-color: #f1e2b7;
+    border: 2px solid #000;
+    font-weight: 700;
+    text-align: center;
+}
+
+.day-block-empty {
+    background-color: transparent;
+    border: 2px solid transparent;
+    cursor: default;
+}
+
+.day-block.adjacent-month {
+    opacity: 0.85;
+}
+
+.day-block.outside-range {
+    opacity: 0.3;
+    cursor: default;
 }
 
 .day-block {
@@ -51,19 +104,21 @@ h1 {
 }
 
 .day-block.today {
-    background-color: #ffcccc;
+    background-color: transparent;
+}
+
+.day-block.today .day-number {
+    background-color: #1976d2;
+    color: #fff;
 }
 
 .day-block.shift {
     background-color: #ffcccc;
 }
 
-.day-block.activity {
-    background-color: #ccffcc;
-}
-
+.day-block.activity,
 .day-block.other {
-    background-color: #ffffcc;
+    background-color: transparent;
 }
 
 .day-block.holiday {
@@ -79,6 +134,10 @@ h1 {
     padding: 2px 6px;
     border-radius: 3px;
     width: fit-content;
+}
+
+.day-block.alternate-sunday .day-number {
+    box-shadow: 0 0 0 2px #d32f2f;
 }
 
 .day-number.payday {
@@ -182,19 +241,11 @@ h1 {
     margin-bottom: 5px;
     background-color: #f9f4f0;
     border-radius: 3px;
-    border-left: 3px solid #4ecdc4;
+    border-left: 3px solid #ccc;
 }
 
 .entry-item.shift {
-    border-left-color: #ffcccc;
-}
-
-.entry-item.activity {
-    border-left-color: #ccffcc;
-}
-
-.entry-item.other {
-    border-left-color: #ffffcc;
+    border-left-color: #ff6b6b;
 }
 
 .entry-text {
