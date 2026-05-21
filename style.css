@@ -78,7 +78,14 @@ h1 {
 }
 
 .day-block.adjacent-month {
-    opacity: 0.85;
+    opacity: 0.55;
+    filter: grayscale(60%);
+    background-color: rgba(255, 255, 255, 0.45);
+}
+
+.day-block.adjacent-month.shift,
+.day-block.adjacent-month.holiday {
+    background-color: rgba(255, 204, 204, 0.45);
 }
 
 .day-block.outside-range {
