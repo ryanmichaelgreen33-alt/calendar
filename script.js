@@ -59,7 +59,7 @@ const paydays = calculatePaydays();
 const specialSundays = calculateAlternateSundays();
 
 const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-const startMonth = 4; // May
+const startMonth = 2; // March
 const endMonth = 11; // December
 let currentMonth = startMonth;
 const currentYear = 2026;
