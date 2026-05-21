@@ -41,7 +41,28 @@ function calculatePaydays() {
     return paydays;
 }
 
+function calculateAlternateSundays() {
+    const specialSundays = new Set();
+    let currentDate = new Date(2026, 3, 26); // April 26, 2026
+    const endDate = new Date(2026, 11, 31);
+
+    while (currentDate <= endDate) {
+        const dateStr = currentDate.toISOString().split('T')[0];
+        specialSundays.add(dateStr);
+        currentDate.setDate(currentDate.getDate() + 14);
+    }
+
+    return specialSundays;
+}
+
 const paydays = calculatePaydays();
+const specialSundays = calculateAlternateSundays();
+
+const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+const startMonth = 4; // May
+const endMonth = 11; // December
+let currentMonth = startMonth;
+const currentYear = 2026;
 
 // Format date to YYYY-MM-DD
 function formatDate(date) {
@@ -73,163 +94,161 @@ function getContentType(content) {
     
     if (content.includes('-') && content.startsWith('6-')) {
         return 'shift';
-    } else if (content === 'Soccer' || content === 'Yoga') {
-        return 'activity';
-    } else {
-        return 'other';
     }
+    return null;
 }
 
-// Generate calendar
+function getMonthLabel(year, month) {
+    return `${monthNames[month]} ${year}`;
+}
+
+function updateNavigationButtons() {
+    document.getElementById('prevMonthBtn').disabled = currentMonth <= startMonth;
+    document.getElementById('nextMonthBtn').disabled = currentMonth >= endMonth;
+}
+
+function changeMonth(delta) {
+    const nextMonth = currentMonth + delta;
+    if (nextMonth < startMonth || nextMonth > endMonth) return;
+    currentMonth = nextMonth;
+    generateCalendar();
+    updateNavigationButtons();
+    loadEntries();
+}
+
+// Generate calendar for the current month and its visible adjacent days
 function generateCalendar() {
     const calendarDiv = document.getElementById('calendar');
     calendarDiv.innerHTML = '';
 
-    const startDate = new Date(2026, 4, 1); // May 1, 2026
-    const endDate = new Date(2026, 11, 31); // December 31, 2026
-    const today = new Date();
-    const todayStr = formatDate(today);
+    const monthLabel = document.getElementById('monthLabel');
+    monthLabel.textContent = getMonthLabel(currentYear, currentMonth);
 
-    let currentDate = new Date(startDate);
-    // Find the first Sunday of the week containing May 1, 2026
-    const dayOfWeek = currentDate.getDay();
-    currentDate.setDate(currentDate.getDate() - dayOfWeek);
+    const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    weekdays.forEach((day) => {
+        const header = document.createElement('div');
+        header.className = 'weekday-header';
+        header.textContent = day;
+        calendarDiv.appendChild(header);
+    });
 
-    let lastRenderedMonth = -1;
+    const monthStart = new Date(currentYear, currentMonth, 1);
+    const monthEnd = new Date(currentYear, currentMonth + 1, 0);
+    const displayStart = new Date(monthStart);
+    displayStart.setDate(displayStart.getDate() - displayStart.getDay());
+    const displayEnd = new Date(monthEnd);
+    displayEnd.setDate(displayEnd.getDate() + (6 - displayEnd.getDay()));
 
-    while (currentDate <= endDate) {
-        // Check if this week contains the 1st of a new month (and it's not the very start)
-        const weekStartDate = new Date(currentDate);
-        let monthFound = -1;
-        
-        for (let i = 0; i < 7; i++) {
-            if (weekStartDate.getDate() === 1 && weekStartDate.getMonth() !== lastRenderedMonth) {
-                monthFound = weekStartDate.getMonth();
-                break;
-            }
-            weekStartDate.setDate(weekStartDate.getDate() + 1);
-        }
-        
-        // Add margin before the week if a new month starts in this week (but not before May 1)
-        if (monthFound !== -1 && monthFound !== 4) {
-            const monthMargin = document.createElement('div');
-            monthMargin.className = 'month-margin';
-            calendarDiv.appendChild(monthMargin);
-        }
+    const globalStart = new Date(currentYear, startMonth, 1);
+    const globalEnd = new Date(currentYear, endMonth + 1, 0);
+    const todayStr = formatDate(new Date());
 
-        // Create week rows (7 days)
-        for (let i = 0; i < 7; i++) {
-            const dateStr = formatDate(currentDate);
-            const dayBlock = document.createElement('div');
-            dayBlock.className = 'day-block';
+    let currentDate = new Date(displayStart);
+    while (currentDate <= displayEnd) {
+        const dateStr = formatDate(currentDate);
+        const dayBlock = document.createElement('div');
+        dayBlock.className = 'day-block';
 
-            // Add today highlight
-            if (dateStr === todayStr) {
-                dayBlock.classList.add('today');
-            }
+        const inGlobalRange = currentDate >= globalStart && currentDate <= globalEnd;
+        const inCurrentMonth = currentDate.getMonth() === currentMonth;
 
-            // Add payday highlight
-            if (paydays.has(dateStr)) {
-                dayBlock.classList.add('payday');
-            }
-
-            // Only show dates within the calendar range (May 1 - Dec 31)
-            if (currentDate >= startDate && currentDate <= endDate) {
-                const dayNumber = currentDate.getDate();
-                const holiday = holidays[dateStr];
-                
-                // Track which month we're in
-                if (dayNumber === 1) {
-                    lastRenderedMonth = currentDate.getMonth();
-                }
-
-                let dayNumberClasses = 'day-number';
-                if (paydays.has(dateStr)) {
-                    dayNumberClasses += ' payday';
-                }
-                if (dateStr === todayStr) {
-                    dayNumberClasses += ' today';
-                }
-                
-                let dayNumberHtml = `<div class="${dayNumberClasses}">${dayNumber}</div>`;
-                let topContent = dayNumberHtml;
-                if (holiday) {
-                    topContent += `<div class="day-holiday">${holiday}</div>`;
-                }
-
-                dayBlock.innerHTML = topContent + '<div class="day-content" id="content-' + dateStr + '"></div>';
-                dayBlock.dataset.date = dateStr;
-                
-                // Add holiday class if it's a statutory holiday
-                if (holiday) {
-                    dayBlock.classList.add('holiday');
-                }
-                
-                dayBlock.addEventListener('click', () => openModal(dateStr));
-            } else {
-                dayBlock.style.backgroundColor = '#d4c299';
-                dayBlock.style.cursor = 'default';
-                dayBlock.style.border = 'none';
-                dayBlock.removeEventListener('click', null);
-            }
-
-            calendarDiv.appendChild(dayBlock);
-            currentDate.setDate(currentDate.getDate() + 1);
+        if (!inGlobalRange) {
+            dayBlock.classList.add('outside-range');
+        } else if (!inCurrentMonth) {
+            dayBlock.classList.add('adjacent-month');
         }
 
-        // Add week separator
-        if (currentDate <= endDate) {
-            const separator = document.createElement('div');
-            separator.className = 'week-separator';
-            calendarDiv.appendChild(separator);
+        if (dateStr === todayStr) {
+            dayBlock.classList.add('today');
         }
+
+        if (paydays.has(dateStr)) {
+            dayBlock.classList.add('payday');
+        }
+
+        const dayNumber = currentDate.getDate();
+        const holiday = holidays[dateStr];
+
+        let topContent = `<div class="day-number">${dayNumber}</div>`;
+        if (holiday) {
+            topContent += `<div class="day-holiday">${holiday}</div>`;
+        }
+
+        dayBlock.innerHTML = topContent + `<div class="day-content" id="content-${dateStr}"></div>`;
+        dayBlock.dataset.date = dateStr;
+
+        if (holiday) {
+            dayBlock.classList.add('holiday');
+        }
+
+        if (specialSundays.has(dateStr)) {
+            dayBlock.classList.add('alternate-sunday');
+        }
+
+        if (inGlobalRange) {
+            dayBlock.addEventListener('click', () => openModal(dateStr));
+        }
+
+        calendarDiv.appendChild(dayBlock);
+        currentDate.setDate(currentDate.getDate() + 1);
     }
 }
 
-// Load day entries from Firebase
+// Load day entries from Firebase for the visible displayed calendar range
 async function loadEntries() {
-    const startDate = new Date(2026, 4, 1);
-    const endDate = new Date(2026, 11, 31);
+    const monthStart = new Date(currentYear, currentMonth, 1);
+    const monthEnd = new Date(currentYear, currentMonth + 1, 0);
+    const displayStart = new Date(monthStart);
+    displayStart.setDate(displayStart.getDate() - displayStart.getDay());
+    const displayEnd = new Date(monthEnd);
+    displayEnd.setDate(displayEnd.getDate() + (6 - displayEnd.getDay()));
+
+    const startDate = new Date(displayStart);
+    const endDate = new Date(displayEnd);
+    const loadPromises = [];
     let currentDate = new Date(startDate);
 
     while (currentDate <= endDate) {
         const dateStr = formatDate(currentDate);
         const contentDiv = document.getElementById('content-' + dateStr);
         const dayBlock = document.querySelector(`[data-date="${dateStr}"]`);
-        
+
         if (contentDiv && dayBlock) {
-            try {
-                const docRef = doc(db, 'calendar_entries', dateStr);
-                const docSnap = await getDoc(docRef);
-                
-                if (docSnap.exists()) {
-                    const data = docSnap.data();
-                    const entries = data.entries || [];
-                    
-                    // Display all entries in the block, stacked vertically
-                    contentDiv.textContent = entries.join('\n');
-                    contentDiv.style.whiteSpace = 'pre-wrap';
-                    
-                    // Apply content type class based on first entry
-                    // But holidays take priority
-                    dayBlock.classList.remove('shift', 'activity', 'other');
-                    
-                    if (holidays[dateStr]) {
-                        dayBlock.classList.add('holiday');
-                    } else if (entries.length > 0) {
-                        const contentType = getContentType(entries[0]);
-                        if (contentType) {
-                            dayBlock.classList.add(contentType);
+            loadPromises.push((async () => {
+                try {
+                    const docRef = doc(db, 'calendar_entries', dateStr);
+                    const docSnap = await getDoc(docRef);
+
+                    if (docSnap.exists()) {
+                        const data = docSnap.data();
+                        const entries = data.entries || [];
+
+                        contentDiv.textContent = entries.join('\n');
+                        contentDiv.style.whiteSpace = 'pre-wrap';
+
+                        dayBlock.classList.remove('shift', 'activity', 'other');
+
+                        if (holidays[dateStr]) {
+                            dayBlock.classList.add('holiday');
+                        } else if (entries.length > 0) {
+                            const contentType = getContentType(entries[0]);
+                            if (contentType) {
+                                dayBlock.classList.add(contentType);
+                            }
                         }
+                    } else {
+                        contentDiv.textContent = '';
                     }
+                } catch (error) {
+                    console.error('Error loading entry for ' + dateStr + ':', error);
                 }
-            } catch (error) {
-                console.error('Error loading entry for ' + dateStr + ':', error);
-            }
+            })());
         }
 
         currentDate.setDate(currentDate.getDate() + 1);
     }
+
+    await Promise.all(loadPromises);
 }
 
 // Modal handling
@@ -295,9 +314,46 @@ function renderEntriesList() {
     });
 }
 
-function deleteEntryAt(index) {
+async function deleteEntryAt(index) {
+    if (!selectedDate) return;
+
     currentEntries.splice(index, 1);
-    renderEntriesList();
+
+    try {
+        const entryRef = doc(db, 'calendar_entries', selectedDate);
+
+        if (currentEntries.length === 0) {
+            await deleteDoc(entryRef);
+        } else {
+            await setDoc(entryRef, {
+                entries: currentEntries,
+                timestamp: new Date()
+            });
+        }
+
+        renderEntriesList();
+
+        const contentDiv = document.getElementById('content-' + selectedDate);
+        const dayBlock = document.querySelector(`[data-date="${selectedDate}"]`);
+
+        if (contentDiv && dayBlock) {
+            contentDiv.textContent = currentEntries.join('\n');
+            contentDiv.style.whiteSpace = 'pre-wrap';
+            dayBlock.classList.remove('shift', 'activity', 'other');
+
+            if (holidays[selectedDate]) {
+                dayBlock.classList.add('holiday');
+            } else if (currentEntries.length > 0) {
+                const contentType = getContentType(currentEntries[0]);
+                if (contentType) {
+                    dayBlock.classList.add(contentType);
+                }
+            }
+        }
+    } catch (error) {
+        console.error('Error deleting entry:', error);
+        alert('Error deleting entry');
+    }
 }
 
 function closeModal() {
@@ -411,13 +467,6 @@ async function loadScrollPosition() {
     }
 }
 
-// Initialize page
-async function init() {
-    generateCalendar();
-    await loadEntries();
-    await loadScrollPosition();
-}
-
 // Event listeners
 document.getElementById('addBtn').addEventListener('click', addEntry);
 document.getElementById('closeBtn').addEventListener('click', closeModal);
@@ -436,6 +485,9 @@ document.getElementById('dayInput').addEventListener('keypress', (e) => {
     }
 });
 
+document.getElementById('prevMonthBtn').addEventListener('click', () => changeMonth(-1));
+document.getElementById('nextMonthBtn').addEventListener('click', () => changeMonth(1));
+
 // Save scroll position on scroll
 window.addEventListener('scroll', () => {
     // Debounce to avoid too many saves
@@ -444,4 +496,11 @@ window.addEventListener('scroll', () => {
 });
 
 // Initialize on page load
+async function init() {
+    generateCalendar();
+    updateNavigationButtons();
+    await loadEntries();
+    await loadScrollPosition();
+}
+
 init();
