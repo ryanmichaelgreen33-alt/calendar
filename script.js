@@ -61,7 +61,9 @@ const specialSundays = calculateAlternateSundays();
 const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const startMonth = 2; // March
 const endMonth = 11; // December
-let currentMonth = startMonth;
+let currentMonth = new Date().getMonth();
+if (currentMonth < startMonth) currentMonth = startMonth;
+if (currentMonth > endMonth) currentMonth = endMonth;
 const currentYear = 2026;
 
 // Format date to YYYY-MM-DD
