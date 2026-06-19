@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Daily Planner</title>
+  <link rel="stylesheet" href="day.css">
+  <style>body{background:#fff;color:#000;font-family:system-ui,-apple-system,Segoe UI,Roboto,'Helvetica Neue',Arial}</style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="corner-group left">
+      <button id="firstHourBtn" class="corner-btn" type="button">«</button>
+      <button id="backHourBtn" class="corner-btn" type="button">‹</button>
+    </div>
+    <button id="resetBtn" type="button">Reset / Refresh</button>
+    <a href="index.html" class="topbar-link" title="Back to calendar">🏠</a>
+    <div class="corner-group right">
+      <button id="forwardHourBtn" class="corner-btn" type="button">›</button>
+      <button id="lastHourBtn" class="corner-btn" type="button">»</button>
+    </div>
+  </div>
+
+  <main id="stage">
+    <div class="planner-wrapper">
+      <div id="planner" class="planner" aria-label="daily planner"></div>
+    </div>
+    <section class="note-box">
+      <textarea id="noteField" placeholder="Type notes here. They persist until reset."></textarea>
+    </section>
+  </main>
+
+  <script type="module" src="day.js"></script>
+</body>
+</html>
