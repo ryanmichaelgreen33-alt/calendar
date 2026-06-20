@@ -296,12 +296,6 @@ function isWorkDay(date){
 
       // Render immediately using cached localStorage workdays
       doRenderBlocks(entries);
-
-      // fetch workdays in background and re-render if changed
-      fetchWorkDaysFromFirestore(displayStart, displayEnd).then(()=>{
-        console.log('workdays refreshed from Firestore');
-        doRenderBlocks(loadEntries(currentDate));
-      }).catch(()=>{});
     }catch(err){
       console.error('render error', err);
     }
@@ -330,15 +324,6 @@ function isWorkDay(date){
       hoursRow.appendChild(block);
     }
     planner.appendChild(hoursRow);
-  }
-
-  function tick(){
-    const now = new Date();
-    const h = now.getHours();
-    if(h !== currentHour && currentHour === currentDate.getHours()){
-      currentHour = h;
-      render();
-    }
   }
 
   const NOTE_KEY = 'planner_notes';
@@ -374,7 +359,6 @@ function isWorkDay(date){
   }
 
   render();
-  setInterval(tick, 60*1000);
   attachNoteField();
 
   const backHourBtn = document.getElementById('backHourBtn');
@@ -396,13 +380,19 @@ function isWorkDay(date){
   }
   if(resetBtn){
     resetBtn.addEventListener('click', ()=>{
-      // clear planner entries, cached workday state, and notes, then refresh
+      // clear planner entries, cached workday state, and notes, then rerender without a full reload
       Object.keys(localStorage).forEach(key => {
         if(key.startsWith('planner_') || key === 'planner_workdays' || key === NOTE_KEY) {
           localStorage.removeItem(key);
         }
       });
-      window.location.reload();
+      currentHour = currentDate.getHours();
+      render();
+      const noteField = document.getElementById('noteField');
+      if(noteField){
+        noteField.value = '';
+        resizeNoteField(noteField);
+      }
     });
   }
 
