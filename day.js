@@ -4,8 +4,40 @@ import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/11
 const VISIBLE = 8;
 const planner = document.getElementById('planner');
 
+const SELECTED_HOUR_KEY = 'planner_selected_hour';
+
+function loadSelectedHour(date){
+  try{
+    const raw = localStorage.getItem(SELECTED_HOUR_KEY);
+    if(!raw) return null;
+    const data = JSON.parse(raw);
+    if(data && data.date === date.toISOString().slice(0,10)){
+      const hour = Number(data.hour);
+      return Number.isInteger(hour) ? hour : null;
+    }
+  }catch(e){ }
+  return null;
+}
+
+function saveSelectedHour(date, hour){
+  try{
+    localStorage.setItem(SELECTED_HOUR_KEY, JSON.stringify({
+      date: date.toISOString().slice(0,10),
+      hour
+    }));
+  }catch(e){ }
+}
+
+function setCurrentHour(hour){
+  currentHour = hour;
+  saveSelectedHour(currentDate, currentHour);
+  render();
+}
+
 let currentDate = new Date();
 let currentHour = currentDate.getHours();
+const savedHour = loadSelectedHour(currentDate);
+if(savedHour !== null) currentHour = savedHour;
 
 // Firebase config (same project used by the main calendar)
 const firebaseConfig = {
@@ -75,53 +107,13 @@ function isWorkDay(date){
     return isWorkDay(date) ? 22 : 23; // 22 -> 10pm, 23 -> 11pm
   }
 
-  const VIEW_HOUR_KEY_PREFIX = 'planner_view_hour_';
-
-  function localDateString(date){
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  }
-
   function dateKey(date){
-    return 'planner_' + localDateString(date);
-  }
-
-  function legacyDateKey(date){
     return 'planner_' + date.toISOString().slice(0,10);
   }
 
-  function viewHourKey(date){
-    return VIEW_HOUR_KEY_PREFIX + localDateString(date);
-  }
-
-  function loadSavedViewHour(date){
-    const raw = localStorage.getItem(viewHourKey(date));
-    const hour = raw === null ? null : parseInt(raw, 10);
-    return Number.isInteger(hour) ? hour : null;
-  }
-
-  function saveViewHour(date, hour){
-    if(!Number.isInteger(hour)) return;
-    localStorage.setItem(viewHourKey(date), String(hour));
-  }
-
   function loadEntries(date){
-    const localKey = dateKey(date);
-    let raw = localStorage.getItem(localKey);
-    if(raw === null){
-      const legacyKey = legacyDateKey(date);
-      raw = localStorage.getItem(legacyKey);
-      if(raw !== null){
-        try{ localStorage.setItem(localKey, raw); }catch(e){}
-      }
-    }
-    try{
-      return raw ? JSON.parse(raw) : {};
-    }catch(e){
-      return {};
-    }
+    const raw = localStorage.getItem(dateKey(date));
+    return raw ? JSON.parse(raw) : {};
   }
 
   function saveEntries(date, entries){
@@ -323,19 +315,9 @@ function isWorkDay(date){
 
   async function render(){
     try{
-      const dayStart = startOfDayFor(currentDate);
-      const nightEnd = endOfNightFor(currentDate);
-      const savedHour = loadSavedViewHour(currentDate);
-      if(savedHour !== null && savedHour >= dayStart && savedHour <= nightEnd){
-        currentHour = savedHour;
-      } else {
-        currentHour = Math.min(Math.max(currentHour, dayStart), nightEnd);
-      }
-
       console.log('render start for', currentDate.toISOString().slice(0,10));
       clearPlanner();
       const entries = loadEntries(currentDate);
-      saveViewHour(currentDate, currentHour);
       // determine visible date range for fetching workdays
       const dayStartDate = new Date(currentDate);
       dayStartDate.setHours(0,0,0,0);
@@ -364,25 +346,20 @@ function isWorkDay(date){
 
     const latestStart = Math.max(dayStart, nightEnd - (VISIBLE - 1));
     let startHour = Math.max(dayStart, currentHour);
+
+    const entryHours = Object.keys(entries)
+      .map(Number)
+      .filter(h => Number.isInteger(h));
+    if(entryHours.length){
+      const earliestEntryHour = Math.min(...entryHours);
+      if(earliestEntryHour < startHour){
+        startHour = Math.max(dayStart, earliestEntryHour);
+      }
+    }
+
     if(startHour > latestStart) startHour = latestStart;
     if(startHour < dayStart) startHour = dayStart;
     if(startHour > 23) startHour = 23;
-
-    const entryHours = Object.keys(entries)
-      .map(key => parseInt(key, 10))
-      .filter(hour => Number.isInteger(hour));
-
-    if(entryHours.length){
-      const minEntryHour = Math.min(...entryHours);
-      const maxEntryHour = Math.max(...entryHours);
-      if(minEntryHour < startHour || maxEntryHour > startHour + VISIBLE - 1){
-        let adjustedStart = startHour;
-        if(minEntryHour < adjustedStart) adjustedStart = minEntryHour;
-        if(maxEntryHour > adjustedStart + VISIBLE - 1) adjustedStart = maxEntryHour - (VISIBLE - 1);
-        adjustedStart = Math.max(dayStart, Math.min(adjustedStart, latestStart));
-        startHour = adjustedStart;
-      }
-    }
 
     const hoursRow = document.createElement('div');
     hoursRow.className = 'hours-row';
@@ -403,6 +380,7 @@ function isWorkDay(date){
     const h = now.getHours();
     if(h !== currentHour && currentHour === currentDate.getHours()){
       currentHour = h;
+      saveSelectedHour(currentDate, currentHour);
       render();
     }
   }
@@ -449,16 +427,16 @@ function isWorkDay(date){
   const lastHourBtn = document.getElementById('lastHourBtn');
   const resetBtn = document.getElementById('resetBtn');
   if(backHourBtn){
-    backHourBtn.addEventListener('click', ()=>{ currentHour = Math.max(0, currentHour - 1); render(); });
+    backHourBtn.addEventListener('click', ()=>{ setCurrentHour(Math.max(0, currentHour - 1)); });
   }
   if(forwardHourBtn){
-    forwardHourBtn.addEventListener('click', ()=>{ currentHour = Math.min(23, currentHour + 1); render(); });
+    forwardHourBtn.addEventListener('click', ()=>{ setCurrentHour(Math.min(23, currentHour + 1)); });
   }
   if(firstHourBtn){
-    firstHourBtn.addEventListener('click', ()=>{ currentHour = startOfDayFor(currentDate); render(); });
+    firstHourBtn.addEventListener('click', ()=>{ setCurrentHour(startOfDayFor(currentDate)); });
   }
   if(lastHourBtn){
-    lastHourBtn.addEventListener('click', ()=>{ currentHour = endOfNightFor(currentDate); render(); });
+    lastHourBtn.addEventListener('click', ()=>{ setCurrentHour(endOfNightFor(currentDate)); });
   }
   if(resetBtn){
     resetBtn.addEventListener('click', ()=>{
