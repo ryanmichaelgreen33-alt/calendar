@@ -5,7 +5,8 @@ const VISIBLE = 8;
 const planner = document.getElementById('planner');
 
 let currentDate = new Date();
-let currentHour = currentDate.getHours();
+let liveHour = currentDate.getHours();
+let viewStart = null; // start hour of the visible window (0-23). null = auto
 
 // Firebase config (same project used by the main calendar)
 const firebaseConfig = {
@@ -143,7 +144,7 @@ function isWorkDay(date){
 
     const label = document.createElement('div');
     label.className = 'hour-label';
-    if(hour === currentHour) label.classList.add('current-hour');
+    if(hour === liveHour) label.classList.add('current-hour');
     label.textContent = formatHour12(hour);
     block.appendChild(label);
 
@@ -325,17 +326,25 @@ function isWorkDay(date){
     try{
       const dayStart = startOfDayFor(currentDate);
       const nightEnd = endOfNightFor(currentDate);
-      const savedHour = loadSavedViewHour(currentDate);
-      if(savedHour !== null && savedHour >= dayStart && savedHour <= nightEnd){
-        currentHour = savedHour;
-      } else {
-        currentHour = Math.min(Math.max(currentHour, dayStart), nightEnd);
+      const latestStart = Math.max(dayStart, nightEnd - (VISIBLE - 1));
+
+      // initialize viewStart from saved state or live hour
+      const saved = loadSavedViewHour(currentDate);
+      if(saved !== null && saved >= dayStart && saved <= nightEnd){
+        viewStart = saved;
       }
+      if(viewStart === null){
+        // default to liveHour clamped into allowed start range
+        const defaultStart = Math.min(Math.max(liveHour, dayStart), latestStart);
+        viewStart = defaultStart;
+      }
+      // clamp viewStart into allowable window
+      viewStart = Math.max(dayStart, Math.min(viewStart, latestStart));
 
       console.log('render start for', currentDate.toISOString().slice(0,10));
       clearPlanner();
       const entries = loadEntries(currentDate);
-      saveViewHour(currentDate, currentHour);
+      saveViewHour(currentDate, viewStart);
       // determine visible date range for fetching workdays
       const dayStartDate = new Date(currentDate);
       dayStartDate.setHours(0,0,0,0);
@@ -363,7 +372,7 @@ function isWorkDay(date){
     const nightEnd = endOfNightFor(currentDate);
 
     const latestStart = Math.max(dayStart, nightEnd - (VISIBLE - 1));
-    let startHour = Math.max(dayStart, currentHour);
+    let startHour = Math.max(dayStart, (viewStart !== null ? viewStart : liveHour));
     if(startHour > latestStart) startHour = latestStart;
     if(startHour < dayStart) startHour = dayStart;
     if(startHour > 23) startHour = 23;
@@ -401,8 +410,8 @@ function isWorkDay(date){
   function tick(){
     const now = new Date();
     const h = now.getHours();
-    if(h !== currentHour && currentHour === currentDate.getHours()){
-      currentHour = h;
+    if(h !== liveHour){
+      liveHour = h;
       render();
     }
   }
@@ -449,16 +458,44 @@ function isWorkDay(date){
   const lastHourBtn = document.getElementById('lastHourBtn');
   const resetBtn = document.getElementById('resetBtn');
   if(backHourBtn){
-    backHourBtn.addEventListener('click', ()=>{ currentHour = Math.max(0, currentHour - 1); render(); });
+    backHourBtn.addEventListener('click', ()=>{
+      console.log('backHourBtn clicked', {viewStart, liveHour});
+      const dayStart = startOfDayFor(currentDate);
+      const nightEnd = endOfNightFor(currentDate);
+      const latestStart = Math.max(dayStart, nightEnd - (VISIBLE - 1));
+      if(viewStart === null) viewStart = Math.min(Math.max(liveHour, dayStart), latestStart);
+      viewStart = Math.max(dayStart, viewStart - 1);
+      saveViewHour(currentDate, viewStart);
+      render();
+    });
   }
   if(forwardHourBtn){
-    forwardHourBtn.addEventListener('click', ()=>{ currentHour = Math.min(23, currentHour + 1); render(); });
+    forwardHourBtn.addEventListener('click', ()=>{
+      console.log('forwardHourBtn clicked', {viewStart, liveHour});
+      const dayStart = startOfDayFor(currentDate);
+      const nightEnd = endOfNightFor(currentDate);
+      const latestStart = Math.max(dayStart, nightEnd - (VISIBLE - 1));
+      if(viewStart === null) viewStart = Math.min(Math.max(liveHour, dayStart), latestStart);
+      viewStart = Math.min(latestStart, viewStart + 1);
+      saveViewHour(currentDate, viewStart);
+      render();
+    });
   }
   if(firstHourBtn){
-    firstHourBtn.addEventListener('click', ()=>{ currentHour = startOfDayFor(currentDate); render(); });
+    firstHourBtn.addEventListener('click', ()=>{
+      viewStart = startOfDayFor(currentDate);
+      saveViewHour(currentDate, viewStart);
+      render();
+    });
   }
   if(lastHourBtn){
-    lastHourBtn.addEventListener('click', ()=>{ currentHour = endOfNightFor(currentDate); render(); });
+    lastHourBtn.addEventListener('click', ()=>{
+      const dayStart = startOfDayFor(currentDate);
+      const nightEnd = endOfNightFor(currentDate);
+      viewStart = Math.max(dayStart, nightEnd - (VISIBLE - 1));
+      saveViewHour(currentDate, viewStart);
+      render();
+    });
   }
   if(resetBtn){
     resetBtn.addEventListener('click', ()=>{
