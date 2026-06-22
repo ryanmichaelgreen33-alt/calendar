@@ -1,0 +1,45 @@
+*{box-sizing:border-box}
+body,html{height:100%;margin:0}
+.topbar{padding:14px 32px;display:flex;align-items:center;justify-content:center;position:relative;min-height:56px}
+.topbar button{background:#000;color:#fff;border:none;padding:8px 14px;border-radius:999px;font-size:14px;cursor:pointer}
+.topbar button:hover{background:#111}
+.corner-group{position:absolute;top:50%;transform:translateY(-50%);display:flex;gap:8px}
+.corner-group.left{left:12px}
+.corner-group.right{right:12px}
+.corner-btn{background:#000;color:#fff;border:none;padding:8px 12px;border-radius:999px;font-size:14px;cursor:pointer}
+.corner-btn:hover{background:#111}
+.topbar-link{display:inline-flex;align-items:center;justify-content:center;margin:0 12px;padding:8px 10px;border-radius:999px;background:#000;color:#fff;text-decoration:none;font-size:14px}
+.topbar-link:hover{background:#111}
+#stage{display:flex;flex-direction:column;align-items:center;justify-content:flex-start;min-height:calc(100vh - 56px);padding:48px 12px 12px;margin-top:12px}
+.planner-wrapper{display:flex;align-items:center;justify-content:center;width:100%;padding-top:24px}
+.planner{width:100%;max-width:100%;margin:0;padding:0}
+.note-box{width:min(640px,100%);padding:20px 0 0 0;overflow:hidden}
+#noteField{width:100%;min-height:96px;height:auto;border:none;border-radius:10px;padding:10px;font-size:14px;font-family:system-ui,-apple-system,Segoe UI,Roboto,'Helvetica Neue',Arial;resize:none;outline:none;background:#fff;box-shadow:inset 0 0 0 1px rgba(0,0,0,0.12);overflow:auto;max-height:50vh}
+.hours-row{display:flex;gap:0;align-items:stretch;justify-content:stretch}
+.hour-block{flex:1;min-height:140px;border-left:2px solid #000;position:relative;overflow:visible;background:#fff;display:flex;flex-direction:column}
+.hour-label{position:absolute;top:-12px;left:50%;transform:translateX(-50%);font-weight:700;font-size:12px;background:#fff;padding:0 6px;border-radius:999px;transition:background 150ms ease,border-color 150ms ease,color 150ms ease}
+.hour-label.current-hour{background:rgba(255,215,0,0.2);border:1px solid rgba(255,193,7,0.6);color:#000}
+.sleep-badge{position:absolute;top:6px;right:6px;font-size:11px;color:#444}
+.content{flex:1;display:flex;align-items:stretch;justify-content:stretch;padding:0;text-align:center;font-size:16px}
+.content[contenteditable="true"]{outline:none}
+.entry-item{display:block;width:100%;padding:4px 8px;box-sizing:border-box}
+.entry-item.center{text-align:center}
+.entry-item.coming{text-align:left}
+.entry-item.going{text-align:right}
+
+.content .col{flex:1;display:flex;flex-direction:column;gap:6px;min-height:100%;padding:6px 0}
+.content .col.left{align-items:flex-start;justify-content:flex-end;padding-left:0}
+.content .col.center{align-items:center;justify-content:center;padding:0 6px}
+.content .col.right{align-items:flex-end;justify-content:flex-start;padding-right:0}
+
+.entry-item{max-width:100%;border-radius:6px}
+.entry-item.coming{background:rgba(255,0,0,0.06);color:#8b0000;font-size:12px}
+.entry-item.going{background:rgba(0,0,255,0.06);color:#003366;font-size:12px}
+.entry-item.center{background:transparent;color:inherit;font-size:13px}
+
+.overlay{position:absolute;inset:0;pointer-events:none;transition:background 150ms ease}
+.overlay.left{background:linear-gradient(90deg, rgba(255,0,0,0.45) 0%, rgba(255,0,0,0) 35%)}
+.overlay.right{background:linear-gradient(270deg, rgba(0,0,255,0.45) 0%, rgba(0,0,255,0) 35%)}
+.hours-row .hour-block:first-child{border-left:2px solid #000}
+.hour-block:focus-within{border-color:#000}
+@media (max-width:520px){.hour-label{font-size:11px}.content{font-size:14px}}
