@@ -98,14 +98,26 @@ function isWorkDay(date){
   }
 
   function loadSavedViewHour(date){
-    const raw = localStorage.getItem(viewHourKey(date));
-    const hour = raw === null ? null : parseInt(raw, 10);
-    return Number.isInteger(hour) ? hour : null;
+    try{
+      const raw = localStorage.getItem(viewHourKey(date));
+      const hour = raw === null ? null : parseInt(raw, 10);
+      const valid = Number.isInteger(hour) ? hour : null;
+      console.log('loadSavedViewHour', {key:viewHourKey(date), raw, valid});
+      return valid;
+    }catch(e){
+      console.warn('loadSavedViewHour error', e);
+      return null;
+    }
   }
 
   function saveViewHour(date, hour){
     if(!Number.isInteger(hour)) return;
-    localStorage.setItem(viewHourKey(date), String(hour));
+    try{
+      localStorage.setItem(viewHourKey(date), String(hour));
+      console.log('saveViewHour', {key:viewHourKey(date), hour});
+    }catch(e){
+      console.warn('saveViewHour error', e);
+    }
   }
 
   function loadEntries(date){
@@ -330,7 +342,8 @@ function isWorkDay(date){
 
       // initialize viewStart from saved state or live hour
       const saved = loadSavedViewHour(currentDate);
-      if(saved !== null && saved >= dayStart && saved <= nightEnd){
+      // Only initialize viewStart from saved value on first render (when viewStart is null)
+      if(viewStart === null && saved !== null && saved >= dayStart && saved <= nightEnd){
         viewStart = saved;
       }
       if(viewStart === null){
@@ -339,7 +352,9 @@ function isWorkDay(date){
         viewStart = defaultStart;
       }
       // clamp viewStart into allowable window
+      const beforeClamp = viewStart;
       viewStart = Math.max(dayStart, Math.min(viewStart, latestStart));
+      console.log('render init', {date: currentDate.toISOString().slice(0,10), dayStart, nightEnd, latestStart, beforeClamp, viewStart, liveHour});
 
       console.log('render start for', currentDate.toISOString().slice(0,10));
       clearPlanner();
@@ -459,32 +474,36 @@ function isWorkDay(date){
   const resetBtn = document.getElementById('resetBtn');
   if(backHourBtn){
     backHourBtn.addEventListener('click', ()=>{
-      console.log('backHourBtn clicked', {viewStart, liveHour});
       const dayStart = startOfDayFor(currentDate);
       const nightEnd = endOfNightFor(currentDate);
       const latestStart = Math.max(dayStart, nightEnd - (VISIBLE - 1));
+      const before = viewStart;
       if(viewStart === null) viewStart = Math.min(Math.max(liveHour, dayStart), latestStart);
       viewStart = Math.max(dayStart, viewStart - 1);
       saveViewHour(currentDate, viewStart);
+      console.log('backHourBtn clicked', {before, after:viewStart, dayStart, nightEnd, latestStart, liveHour});
       render();
     });
   }
   if(forwardHourBtn){
     forwardHourBtn.addEventListener('click', ()=>{
-      console.log('forwardHourBtn clicked', {viewStart, liveHour});
       const dayStart = startOfDayFor(currentDate);
       const nightEnd = endOfNightFor(currentDate);
       const latestStart = Math.max(dayStart, nightEnd - (VISIBLE - 1));
+      const before = viewStart;
       if(viewStart === null) viewStart = Math.min(Math.max(liveHour, dayStart), latestStart);
       viewStart = Math.min(latestStart, viewStart + 1);
       saveViewHour(currentDate, viewStart);
+      console.log('forwardHourBtn clicked', {before, after:viewStart, dayStart, nightEnd, latestStart, liveHour});
       render();
     });
   }
   if(firstHourBtn){
     firstHourBtn.addEventListener('click', ()=>{
+      const before = viewStart;
       viewStart = startOfDayFor(currentDate);
       saveViewHour(currentDate, viewStart);
+      console.log('firstHourBtn clicked', {before, after:viewStart});
       render();
     });
   }
@@ -492,11 +511,20 @@ function isWorkDay(date){
     lastHourBtn.addEventListener('click', ()=>{
       const dayStart = startOfDayFor(currentDate);
       const nightEnd = endOfNightFor(currentDate);
+      const before = viewStart;
       viewStart = Math.max(dayStart, nightEnd - (VISIBLE - 1));
       saveViewHour(currentDate, viewStart);
+      console.log('lastHourBtn clicked', {before, after:viewStart, dayStart, nightEnd});
       render();
     });
   }
+  // detect cross-tab/localStorage updates that may overwrite viewStart
+  window.addEventListener('storage', (ev)=>{
+    if(!ev.key) return;
+    if(ev.key.startsWith(VIEW_HOUR_KEY_PREFIX) || ev.key === 'planner_workdays'){
+      console.log('storage event', {key: ev.key, oldValue: ev.oldValue, newValue: ev.newValue});
+    }
+  });
   if(resetBtn){
     resetBtn.addEventListener('click', ()=>{
       // clear planner entries, cached workday state, and notes, then refresh
