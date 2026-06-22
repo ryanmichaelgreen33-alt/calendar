@@ -75,13 +75,53 @@ function isWorkDay(date){
     return isWorkDay(date) ? 22 : 23; // 22 -> 10pm, 23 -> 11pm
   }
 
+  const VIEW_HOUR_KEY_PREFIX = 'planner_view_hour_';
+
+  function localDateString(date){
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
   function dateKey(date){
+    return 'planner_' + localDateString(date);
+  }
+
+  function legacyDateKey(date){
     return 'planner_' + date.toISOString().slice(0,10);
   }
 
+  function viewHourKey(date){
+    return VIEW_HOUR_KEY_PREFIX + localDateString(date);
+  }
+
+  function loadSavedViewHour(date){
+    const raw = localStorage.getItem(viewHourKey(date));
+    const hour = raw === null ? null : parseInt(raw, 10);
+    return Number.isInteger(hour) ? hour : null;
+  }
+
+  function saveViewHour(date, hour){
+    if(!Number.isInteger(hour)) return;
+    localStorage.setItem(viewHourKey(date), String(hour));
+  }
+
   function loadEntries(date){
-    const raw = localStorage.getItem(dateKey(date));
-    return raw ? JSON.parse(raw) : {};
+    const localKey = dateKey(date);
+    let raw = localStorage.getItem(localKey);
+    if(raw === null){
+      const legacyKey = legacyDateKey(date);
+      raw = localStorage.getItem(legacyKey);
+      if(raw !== null){
+        try{ localStorage.setItem(localKey, raw); }catch(e){}
+      }
+    }
+    try{
+      return raw ? JSON.parse(raw) : {};
+    }catch(e){
+      return {};
+    }
   }
 
   function saveEntries(date, entries){
@@ -283,9 +323,19 @@ function isWorkDay(date){
 
   async function render(){
     try{
+      const dayStart = startOfDayFor(currentDate);
+      const nightEnd = endOfNightFor(currentDate);
+      const savedHour = loadSavedViewHour(currentDate);
+      if(savedHour !== null && savedHour >= dayStart && savedHour <= nightEnd){
+        currentHour = savedHour;
+      } else {
+        currentHour = Math.min(Math.max(currentHour, dayStart), nightEnd);
+      }
+
       console.log('render start for', currentDate.toISOString().slice(0,10));
       clearPlanner();
       const entries = loadEntries(currentDate);
+      saveViewHour(currentDate, currentHour);
       // determine visible date range for fetching workdays
       const dayStartDate = new Date(currentDate);
       dayStartDate.setHours(0,0,0,0);
@@ -296,6 +346,12 @@ function isWorkDay(date){
 
       // Render immediately using cached localStorage workdays
       doRenderBlocks(entries);
+
+      // fetch workdays in background and re-render if changed
+      fetchWorkDaysFromFirestore(displayStart, displayEnd).then(()=>{
+        console.log('workdays refreshed from Firestore');
+        doRenderBlocks(loadEntries(currentDate));
+      }).catch(()=>{});
     }catch(err){
       console.error('render error', err);
     }
@@ -312,6 +368,22 @@ function isWorkDay(date){
     if(startHour < dayStart) startHour = dayStart;
     if(startHour > 23) startHour = 23;
 
+    const entryHours = Object.keys(entries)
+      .map(key => parseInt(key, 10))
+      .filter(hour => Number.isInteger(hour));
+
+    if(entryHours.length){
+      const minEntryHour = Math.min(...entryHours);
+      const maxEntryHour = Math.max(...entryHours);
+      if(minEntryHour < startHour || maxEntryHour > startHour + VISIBLE - 1){
+        let adjustedStart = startHour;
+        if(minEntryHour < adjustedStart) adjustedStart = minEntryHour;
+        if(maxEntryHour > adjustedStart + VISIBLE - 1) adjustedStart = maxEntryHour - (VISIBLE - 1);
+        adjustedStart = Math.max(dayStart, Math.min(adjustedStart, latestStart));
+        startHour = adjustedStart;
+      }
+    }
+
     const hoursRow = document.createElement('div');
     hoursRow.className = 'hours-row';
 
@@ -324,6 +396,15 @@ function isWorkDay(date){
       hoursRow.appendChild(block);
     }
     planner.appendChild(hoursRow);
+  }
+
+  function tick(){
+    const now = new Date();
+    const h = now.getHours();
+    if(h !== currentHour && currentHour === currentDate.getHours()){
+      currentHour = h;
+      render();
+    }
   }
 
   const NOTE_KEY = 'planner_notes';
@@ -359,6 +440,7 @@ function isWorkDay(date){
   }
 
   render();
+  setInterval(tick, 60*1000);
   attachNoteField();
 
   const backHourBtn = document.getElementById('backHourBtn');
@@ -380,19 +462,13 @@ function isWorkDay(date){
   }
   if(resetBtn){
     resetBtn.addEventListener('click', ()=>{
-      // clear planner entries, cached workday state, and notes, then rerender without a full reload
+      // clear planner entries, cached workday state, and notes, then refresh
       Object.keys(localStorage).forEach(key => {
         if(key.startsWith('planner_') || key === 'planner_workdays' || key === NOTE_KEY) {
           localStorage.removeItem(key);
         }
       });
-      currentHour = currentDate.getHours();
-      render();
-      const noteField = document.getElementById('noteField');
-      if(noteField){
-        noteField.value = '';
-        resizeNoteField(noteField);
-      }
+      window.location.reload();
     });
   }
 
