@@ -5,6 +5,9 @@ const VISIBLE = 8;
 const planner = document.getElementById('planner');
 
 const SELECTED_HOUR_KEY = 'planner_selected_hour';
+const NOTE_KEY = 'planner_notes';
+const SECOND_NOTE_KEY = 'planner_notes_secondary';
+const LAST_DAILY_RESET_KEY = 'planner_last_daily_reset';
 
 function loadSelectedHour(date){
   try{
@@ -25,6 +28,41 @@ function saveSelectedHour(date, hour){
       date: date.toISOString().slice(0,10),
       hour
     }));
+  }catch(e){ }
+}
+
+function loadNote(key){
+  try{ return localStorage.getItem(key) || ''; }catch(e){ return ''; }
+}
+
+function saveNote(key, value){
+  try{ localStorage.setItem(key, value); }catch(e){ }
+}
+
+function clearPlannerEntriesForDate(date){
+  try{ localStorage.removeItem(dateKey(date)); }catch(e){ }
+}
+
+function clearLeftNote(){
+  try{ localStorage.removeItem(NOTE_KEY); }catch(e){ }
+}
+
+function maybeResetAtOneAM(now = new Date()){
+  try{
+    const nowKey = now.toISOString().slice(0,10);
+    const lastResetKey = localStorage.getItem(LAST_DAILY_RESET_KEY);
+
+    if(!(now.getHours() === 1 && now.getMinutes() === 0)) return;
+    if(lastResetKey === nowKey) return;
+
+    currentDate = new Date(now);
+    currentDate.setHours(0,0,0,0);
+    currentHour = now.getHours();
+    saveSelectedHour(currentDate, currentHour);
+    clearPlannerEntriesForDate(currentDate);
+    clearLeftNote();
+    localStorage.setItem(LAST_DAILY_RESET_KEY, nowKey);
+    render();
   }catch(e){ }
 }
 
@@ -377,6 +415,21 @@ function isWorkDay(date){
 
   function tick(){
     const now = new Date();
+    if(now.getHours() === 1 && now.getMinutes() === 0){
+      maybeResetAtOneAM(now);
+      return;
+    }
+
+    const dateChanged = now.toISOString().slice(0,10) !== currentDate.toISOString().slice(0,10);
+    if(dateChanged){
+      currentDate = new Date(now);
+      currentDate.setHours(0,0,0,0);
+      currentHour = now.getHours();
+      saveSelectedHour(currentDate, currentHour);
+      render();
+      return;
+    }
+
     const h = now.getHours();
     if(h !== currentHour && currentHour === currentDate.getHours()){
       currentHour = h;
@@ -385,41 +438,38 @@ function isWorkDay(date){
     }
   }
 
-  const NOTE_KEY = 'planner_notes';
-
-  function loadNote(){
-    try{
-      return localStorage.getItem(NOTE_KEY) || '';
-    }catch(e){
-      return '';
-    }
-  }
-
-  function saveNote(value){
-    try{
-      localStorage.setItem(NOTE_KEY, value);
-    }catch(e){ }
-  }
-
   function resizeNoteField(field){
     field.style.height = 'auto';
     field.style.height = field.scrollHeight + 'px';
   }
 
-  function attachNoteField(){
+  function attachNoteFields(){
     const noteField = document.getElementById('noteField');
-    if(!noteField) return;
-    noteField.value = loadNote();
-    resizeNoteField(noteField);
-    noteField.addEventListener('input', ()=>{
-      saveNote(noteField.value);
+    const noteFieldRight = document.getElementById('noteFieldRight');
+
+    if(noteField){
+      noteField.value = loadNote(NOTE_KEY);
       resizeNoteField(noteField);
-    });
+      noteField.addEventListener('input', ()=>{
+        saveNote(NOTE_KEY, noteField.value);
+        resizeNoteField(noteField);
+      });
+    }
+
+    if(noteFieldRight){
+      noteFieldRight.value = loadNote(SECOND_NOTE_KEY);
+      resizeNoteField(noteFieldRight);
+      noteFieldRight.addEventListener('input', ()=>{
+        saveNote(SECOND_NOTE_KEY, noteFieldRight.value);
+        resizeNoteField(noteFieldRight);
+      });
+    }
   }
 
+  maybeResetAtOneAM(new Date());
   render();
   setInterval(tick, 60*1000);
-  attachNoteField();
+  attachNoteFields();
 
   const backHourBtn = document.getElementById('backHourBtn');
   const forwardHourBtn = document.getElementById('forwardHourBtn');
@@ -440,12 +490,10 @@ function isWorkDay(date){
   }
   if(resetBtn){
     resetBtn.addEventListener('click', ()=>{
-      // clear planner entries, cached workday state, and notes, then refresh
-      Object.keys(localStorage).forEach(key => {
-        if(key.startsWith('planner_') || key === 'planner_workdays' || key === NOTE_KEY) {
-          localStorage.removeItem(key);
-        }
-      });
+      clearPlannerEntriesForDate(currentDate);
+      clearLeftNote();
+      const leftField = document.getElementById('noteField');
+      if(leftField) leftField.value = '';
       window.location.reload();
     });
   }

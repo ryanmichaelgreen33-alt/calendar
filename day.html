@@ -25,8 +25,13 @@
     <div class="planner-wrapper">
       <div id="planner" class="planner" aria-label="daily planner"></div>
     </div>
-    <section class="note-box">
-      <textarea id="noteField" placeholder="Type notes here. They persist until reset."></textarea>
+    <section class="note-stack" aria-label="notes">
+      <section class="note-box">
+        <textarea id="noteField" placeholder="Type notes here. They clear at the daily 1am reset."></textarea>
+      </section>
+      <section class="note-box">
+        <textarea id="noteFieldRight" placeholder="Type a separate note here. It stays independent from the planner and left note."></textarea>
+      </section>
     </section>
   </main>
 

@@ -13,8 +13,9 @@ body,html{height:100%;margin:0}
 #stage{display:flex;flex-direction:column;align-items:center;justify-content:flex-start;min-height:calc(100vh - 56px);padding:48px 12px 12px;margin-top:12px}
 .planner-wrapper{display:flex;align-items:center;justify-content:center;width:100%;padding-top:24px}
 .planner{width:100%;max-width:100%;margin:0;padding:0}
-.note-box{width:min(640px,100%);padding:20px 0 0 0;overflow:hidden}
-#noteField{width:100%;min-height:96px;height:auto;border:none;border-radius:10px;padding:10px;font-size:14px;font-family:system-ui,-apple-system,Segoe UI,Roboto,'Helvetica Neue',Arial;resize:none;outline:none;background:#fff;box-shadow:inset 0 0 0 1px rgba(0,0,0,0.12);overflow:auto;max-height:50vh}
+.note-stack{display:flex;justify-content:center;align-items:flex-start;gap:20px;flex-wrap:wrap;width:min(920px,100%);padding:20px 0 0;box-sizing:border-box}
+.note-box{flex:1 1 280px;max-width:420px;min-width:240px;padding:0;overflow:hidden}
+.note-box textarea{width:100%;min-height:96px;height:auto;border:none;border-radius:10px;padding:10px;font-size:14px;font-family:system-ui,-apple-system,Segoe UI,Roboto,'Helvetica Neue',Arial;resize:none;outline:none;background:#fff;box-shadow:inset 0 0 0 1px rgba(0,0,0,0.12);overflow:auto;max-height:50vh}
 .hours-row{display:flex;gap:0;align-items:stretch;justify-content:stretch}
 .hour-block{flex:1;min-height:140px;border-left:2px solid #000;position:relative;overflow:visible;background:#fff;display:flex;flex-direction:column}
 .hour-label{position:absolute;top:-12px;left:50%;transform:translateX(-50%);font-weight:700;font-size:12px;background:#fff;padding:0 6px;border-radius:999px;transition:background 150ms ease,border-color 150ms ease,color 150ms ease}
